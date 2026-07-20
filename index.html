@@ -349,17 +349,26 @@
         .timeline-panel .step-num { font-size: 0.85rem; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 5px; }
 
         /* --- CONVERSION & CONTACT ZONE --- */
-       #cta-bleed { 
-    background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('images/harbour image.png') repeat-x center center; 
-    background-size: auto 100%; /* Ensures the image height fills the container while letting the width repeat */
+      #cta-bleed { 
+    position: relative;
+    background: transparent; /* Changed to transparent so canvas shows behind */
     text-align: center; 
     padding: 120px 20px; 
-    animation: sandDrift 45s linear infinite; /* Loops the animation smoothly forever */
-    will-change: background-position; /* Optimizes GPU performance for 60fps movement */
+    overflow: hidden;
 }
-        #cta-bleed h2 { color: var(--white); font-size: clamp(2.5rem, 4vw, 3.8rem); margin-bottom: 35px; }
-        #cta-bleed .hero-ctas .btn-primary { background-color: var(--white); color: var(--text-main); }
-        #cta-bleed .hero-ctas .btn-primary:hover { background-color: var(--accent); color: var(--white); }
+#cta-bleed h2 { color: var(--white); font-size: clamp(2.5rem, 4vw, 3.8rem); margin-bottom: 35px; position: relative; z-index: 2; }
+#cta-bleed .hero-ctas { position: relative; z-index: 2; }
+#cta-bleed .hero-ctas .btn-primary { background-color: var(--white); color: var(--text-main); }
+#cta-bleed .hero-ctas .btn-primary:hover { background-color: var(--accent); color: var(--white); }
+
+/* The new canvas wrapper styling */
+#cta-bleed canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
         @keyframes sandDrift {
     0% { background-position: 0px center; }
     100% { background-position: -1920px center; }
@@ -661,6 +670,7 @@
 
         <!-- CONVERSION BLEED ZONE -->
         <section id="cta-bleed">
+            <canvas id="sandCanvas"></canvas>
             <div class="reveal">
                 <h2>Ready to build your dream home?</h2>
                 <div class="hero-ctas">
@@ -917,6 +927,107 @@
                 }
             }, { passive: true });
         });
+        // --- SAND PARTICLE DISINTEGRATION ENGINE ---
+const canvas = document.getElementById("sandCanvas");
+const ctx = canvas.getContext("2d", { willReadFrequently: true });
+const container = document.getElementById("cta-bleed");
+
+let particles = [];
+let img = new Image();
+img.src = 'images/harbour image.png'; 
+
+function resizeCanvas() {
+    canvas.width = container.offsetWidth;
+    canvas.height = container.offsetHeight;
+}
+
+img.onload = function() {
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    initParticles();
+    animateParticles();
+};
+
+class Particle {
+    constructor(x, y, color) {
+        this.originX = x;
+        this.originY = y;
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        // Randomize dispersal trajectory vectors (sand storm effect)
+        this.vx = (Math.random() - 0.5) * 4 + 2; // Bias slightly to the right like wind
+        this.vy = (Math.random() - 0.5) * 2;
+        this.alpha = 1;
+    }
+    
+    update(progress) {
+        // progress goes from 0 to 1 (solid image), then 1 to 2 (dispersed sand)
+        if (progress <= 1) {
+            // Re-forming stage: interpolate back to original positions
+            this.x = this.originX + (this.vx * 100) * (1 - progress);
+            this.y = this.originY + (this.vy * 100) * (1 - progress);
+        } else {
+            // Disintegrating stage: blow away into sand grains
+            let p = progress - 1;
+            this.x = this.originX + (this.vx * 100) * p;
+            this.y = this.originY + (this.vy * 100) * p;
+        }
+    }
+    
+    draw() {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, 2, 2); // 2x2px sand grains
+    }
+}
+
+function initParticles() {
+    // Render hidden image onto canvas temporary vector bounds to sample pixels
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    
+    // Apply a 40% dark overlay color data to match original design tint
+    ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Sample every 6th pixel horizontally and vertically to keep performance crisp
+    const skip = 6; 
+    for (let y = 0; y < canvas.height; y += skip) {
+        for (let x = 0; x < canvas.width; x += skip) {
+            const index = (y * canvas.width + x) * 4;
+            const r = imgData[index];
+            const g = imgData[index + 1];
+            const b = imgData[index + 2];
+            const a = imgData[index + 3];
+            
+            if (a > 0) {
+                particles.push(new Particle(x, y, `rgb(${r},${g},${b})`));
+            }
+        }
+    }
+}
+
+let time = 0;
+function animateParticles() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Creates a cycling loop using Math.sin to transition nicely
+    // 0 = complete image, 1 = maximum sand disorientation
+    time += 0.005; 
+    let cycle = (Math.sin(time) + 1) / 2; // Normalizes value strictly between 0 and 1
+    
+    // Map cycle value to progress steps (0 to 2 range target)
+    let progress = cycle * 2; 
+
+    for (let i = 0; i < particles.length; i++) {
+        particles[i].update(progress);
+        particles[i].draw();
+    }
+    
+    requestAnimationFrame(animateParticles);
+}
     </script>
 </body>
 </html>
