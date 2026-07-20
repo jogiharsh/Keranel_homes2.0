@@ -349,16 +349,21 @@
         .timeline-panel .step-num { font-size: 0.85rem; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 5px; }
 
         /* --- CONVERSION & CONTACT ZONE --- */
-        #cta-bleed { 
-    background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('images/harbour image.png') no-repeat center center; 
-    background-size: cover; 
+       #cta-bleed { 
+    background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('images/harbour image.png') repeat-x center center; 
+    background-size: auto 100%; /* Ensures the image height fills the container while letting the width repeat */
     text-align: center; 
     padding: 120px 20px; 
+    animation: sandDrift 45s linear infinite; /* Loops the animation smoothly forever */
+    will-change: background-position; /* Optimizes GPU performance for 60fps movement */
 }
         #cta-bleed h2 { color: var(--white); font-size: clamp(2.5rem, 4vw, 3.8rem); margin-bottom: 35px; }
         #cta-bleed .hero-ctas .btn-primary { background-color: var(--white); color: var(--text-main); }
         #cta-bleed .hero-ctas .btn-primary:hover { background-color: var(--accent); color: var(--white); }
-        
+        @keyframes sandDrift {
+    0% { background-position: 0px center; }
+    100% { background-position: -1920px center; }
+}
         #contact { background-color: var(--white); }
         .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; max-width: 1600px; margin: 0 auto; }
         .contact-card { background-color: var(--bg-secondary); padding: 60px; border-radius: 4px; }
