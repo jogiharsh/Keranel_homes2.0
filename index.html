@@ -349,9 +349,9 @@
         .timeline-panel .step-num { font-size: 0.85rem; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 5px; }
 
         /* --- CONVERSION & CONTACT ZONE --- */
-      #cta-bleed { 
+    #cta-bleed { 
     position: relative;
-    background: transparent; /* Changed to transparent so canvas shows behind */
+    background-color: #1C2022; /* Fallback elegant background color */
     text-align: center; 
     padding: 120px 20px; 
     overflow: hidden;
@@ -360,6 +360,18 @@
 #cta-bleed .hero-ctas { position: relative; z-index: 2; }
 #cta-bleed .hero-ctas .btn-primary { background-color: var(--white); color: var(--text-main); }
 #cta-bleed .hero-ctas .btn-primary:hover { background-color: var(--accent); color: var(--white); }
+
+/* The isolated background canvas */
+#sandCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+    object-fit: cover;
+}
 
 /* The new canvas wrapper styling */
 #cta-bleed canvas {
@@ -1028,6 +1040,99 @@ function animateParticles() {
     
     requestAnimationFrame(animateParticles);
 }
+        <!-- ISOLATED SAND GRAIN VISUAL ENGINE -->
+<script>
+(function() {
+    const canvas = document.getElementById("sandCanvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const container = document.getElementById("cta-bleed");
+    
+    let particles = [];
+    let img = new Image();
+    img.src = 'images/harbour image.png'; 
+
+    function resizeCanvas() {
+        canvas.width = container.offsetWidth;
+        canvas.height = container.offsetHeight;
+    }
+
+    img.onload = function() {
+        resizeCanvas();
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            initParticles();
+        });
+        initParticles();
+        animateParticles();
+    };
+
+    class SandParticle {
+        constructor(x, y, color) {
+            this.originX = x;
+            this.originY = y;
+            this.x = x;
+            this.y = y;
+            this.color = color;
+            this.vx = (Math.random() - 0.3) * 5; // Blows gracefully sideways
+            this.vy = (Math.random() - 0.5) * 3;
+        }
+        update(progress) {
+            // Smoothly dissolve out and back together using linear interpolation
+            this.x = this.originX + (this.vx * 40) * progress;
+            this.y = this.originY + (this.vy * 40) * progress;
+        }
+        draw() {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, 2, 2); // 2px micro sand grains
+        }
+    }
+
+    function initParticles() {
+        particles = [];
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        // Add a built-in 40% dark overlay layer to keep text readable
+        ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Skip pixels systematically to maintain 60 FPS performance
+        const skip = 5; 
+        for (let y = 0; y < canvas.height; y += skip) {
+            for (let x = 0; x < canvas.width; x += skip) {
+                const index = (y * canvas.width + x) * 4;
+                if (imgData[index + 3] > 0) {
+                    particles.push(new SandParticle(
+                        x, y, 
+                        `rgba(${imgData[index]},${imgData[index+1]},${imgData[index+2]},0.85)`
+                    ));
+                }
+            }
+        }
+    }
+
+    let time = 0;
+    function animateParticles() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        time += 0.015; // Speed of the loop cycle
+        let progress = (Math.sin(time) + 1) / 2; // Bounces perfectly between 0 (solid) and 1 (scattered sand)
+
+        // Add an extra ease curve so the image stays whole for a second before turning back into sand
+        let easedProgress = Math.pow(progress, 3); 
+
+        for (let i = 0; i < particles.length; i++) {
+            particles[i].update(easedProgress);
+            particles[i].draw();
+        }
+        
+        requestAnimationFrame(animateParticles);
+    }
+})();
+</script>
     </script>
 </body>
 </html>
